@@ -49,14 +49,21 @@ export default function App() {
   const [isLeftSidebarOpen, setIsLeftSidebarOpen] = useState(false);
   const [isRightSidebarOpen, setIsRightSidebarOpen] = useState(true);
   const [isAIUpdating, setIsAIUpdating] = useState(false);
-  const [aiStatus, setAiStatus] = useState(AIService.getStatus());
+  const [aiStatus, setAiStatus] = useState({ isCircuitOpen: false, lastQuotaError: 0 });
   const totalRounds = 38;
 
   // Poll AI Status
   useEffect(() => {
-    const interval = setInterval(() => {
-      setAiStatus(AIService.getStatus());
-    }, 5000);
+    const update = async () => {
+      try {
+        const status = await AIService.getStatus();
+        setAiStatus(status);
+      } catch (e) {
+        // Silently fail, keep last status
+      }
+    };
+    update();
+    const interval = setInterval(update, 10000); // 10s is enough for status
     return () => clearInterval(interval);
   }, []);
 

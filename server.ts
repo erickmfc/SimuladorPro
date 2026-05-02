@@ -2,6 +2,7 @@ import express from "express";
 import path from "path";
 import fs from "fs";
 import dotenv from "dotenv";
+import { AIService } from "./src/services/aiService";
 
 dotenv.config();
 
@@ -43,6 +44,58 @@ async function startServer() {
     } catch (error) {
       console.error("Error proxying football API:", error);
       res.status(500).json({ error: "Failed to fetch football data" });
+    }
+  });
+
+  // AI Endpoints
+  app.get("/api/ai/status", async (req, res) => {
+    try {
+      const status = await AIService.getStatus();
+      res.json(status);
+    } catch (error) {
+      res.status(500).json({ error: "Context error" });
+    }
+  });
+
+  app.get("/api/ai/banners", async (req, res) => {
+    const round = parseInt(req.query.round as string) || 1;
+    const force = req.query.force === "true";
+    try {
+      const banners = await AIService.getMultiAgentBanners(round, force);
+      res.json(banners);
+    } catch (error) {
+      res.status(500).json({ error: "AI Error" });
+    }
+  });
+
+  app.get("/api/ai/orchestrate", async (req, res) => {
+    const desc = req.query.matchDescription as string;
+    const force = req.query.force === "true";
+    try {
+      const result = await AIService.orchestrateMatchContext(desc, force);
+      res.json(result);
+    } catch (error) {
+      res.status(500).json({ error: "AI Orchestration Error" });
+    }
+  });
+
+  app.post("/api/ai/verify-players", async (req, res) => {
+    const { players, competition, force } = req.body;
+    try {
+      const verified = await AIService.verifyTopPlayers(players, competition, force);
+      res.json(verified);
+    } catch (error) {
+      res.json(players); // Fallback to original
+    }
+  });
+
+  app.post("/api/ai/check-schedule", async (req, res) => {
+    const { currentSchedule, force } = req.body;
+    try {
+      const result = await AIService.checkMatchSchedule(currentSchedule, force);
+      res.json(result);
+    } catch (error) {
+      res.json({ updatedSchedule: currentSchedule, changesFound: false });
     }
   });
 
