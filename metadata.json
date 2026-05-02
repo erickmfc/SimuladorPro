@@ -1,0 +1,6 @@
+{
+  "name": "Simulador Brasileirão 2026",
+  "description": "Simulador dinâmico do Brasileirão com controle de rodadas, simulação de placares e atualização automática da classificação.",
+  "requestFramePermissions": [],
+  "majorCapabilities": []
+}
