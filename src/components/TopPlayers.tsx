@@ -67,8 +67,8 @@ export const TopPlayers: React.FC<Props> = ({ scorers, assists }) => {
 
               <div className="relative h-32 bg-gradient-to-br from-bet-blue/40 to-indigo-600/40">
                 <div className="absolute -bottom-12 left-1/2 -translate-x-1/2">
-                  <div className="w-24 h-24 rounded-full border-4 border-slate-900 overflow-hidden bg-slate-800 shadow-xl">
-                    <img src={selectedPlayer.player.photo} alt={selectedPlayer.player.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                  <div className="w-24 h-24 rounded-full border-4 border-slate-900 bg-slate-800 shadow-xl flex items-center justify-center">
+                    <User size={40} className="text-slate-600" />
                   </div>
                 </div>
               </div>
@@ -170,8 +170,8 @@ export const TopPlayers: React.FC<Props> = ({ scorers, assists }) => {
                 className="relative bg-slate-900 border border-white/5 rounded-2xl overflow-hidden p-4 group cursor-pointer hover:border-emerald-500/30 transition-colors"
               >
                 <div className="absolute top-0 right-0 p-2 opacity-50"><Trophy size={20} /></div>
-                <div className="w-16 h-16 rounded-full mx-auto overflow-hidden bg-slate-800 border-2 border-emerald-500/30 mb-3 group-hover:scale-110 transition-transform">
-                  <img src={topScorer.player.photo} alt={topScorer.player.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                <div className="w-16 h-16 rounded-full mx-auto bg-slate-800 border-2 border-emerald-500/30 mb-3 group-hover:scale-110 transition-transform flex items-center justify-center">
+                  <User size={24} className="text-slate-600 group-hover:text-emerald-500 transition-colors" />
                 </div>
                 <div className="text-center">
                   <p className="text-[10px] font-black text-white truncate px-1">{topScorer.player.name}</p>
@@ -189,8 +189,8 @@ export const TopPlayers: React.FC<Props> = ({ scorers, assists }) => {
                 className="relative bg-slate-900 border border-white/5 rounded-2xl overflow-hidden p-4 group cursor-pointer hover:border-indigo-500/30 transition-colors"
               >
                 <div className="absolute top-0 right-0 p-2 opacity-50"><Star size={20} /></div>
-                <div className="w-16 h-16 rounded-full mx-auto overflow-hidden bg-slate-800 border-2 border-indigo-500/30 mb-3 group-hover:scale-110 transition-transform">
-                  <img src={topAssist.player.photo} alt={topAssist.player.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                <div className="w-16 h-16 rounded-full mx-auto bg-slate-800 border-2 border-indigo-500/30 mb-3 group-hover:scale-110 transition-transform flex items-center justify-center">
+                  <User size={24} className="text-slate-600 group-hover:text-indigo-500 transition-colors" />
                 </div>
                 <div className="text-center">
                   <p className="text-[10px] font-black text-white truncate px-1">{topAssist.player.name}</p>
@@ -225,9 +225,9 @@ export const TopPlayers: React.FC<Props> = ({ scorers, assists }) => {
                 <span className="text-xs font-black text-slate-500 min-w-[20px]">{idx + 1}</span>
                 <div className="flex items-center gap-3">
                   <div className="relative">
-                    <div className="w-10 h-10 rounded-full overflow-hidden bg-slate-800 border border-white/10 group-hover:border-emerald-500/50 transition-colors">
-                      <img src={s.player.photo} alt={s.player.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-                    </div>
+                  <div className="w-10 h-10 rounded-full bg-slate-800 border border-white/10 group-hover:border-emerald-500/50 transition-colors flex items-center justify-center">
+                    <User size={20} className="text-slate-600 group-hover:text-emerald-500 transition-colors" />
+                  </div>
                     <TeamLogo 
                       name={s.statistics[0].team.name} 
                       logoUrl={s.statistics[0].team.logo} 
@@ -275,9 +275,9 @@ export const TopPlayers: React.FC<Props> = ({ scorers, assists }) => {
                 <span className="text-xs font-black text-slate-500 min-w-[20px]">{idx + 1}</span>
                 <div className="flex items-center gap-3">
                   <div className="relative">
-                    <div className="w-10 h-10 rounded-full overflow-hidden bg-slate-800 border border-white/10 group-hover:border-indigo-500/50 transition-colors">
-                      <img src={s.player.photo} alt={s.player.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-                    </div>
+                  <div className="w-10 h-10 rounded-full bg-slate-800 border border-white/10 group-hover:border-indigo-500/50 transition-colors flex items-center justify-center">
+                    <User size={20} className="text-slate-600 group-hover:text-indigo-500 transition-colors" />
+                  </div>
                     <TeamLogo 
                       name={s.statistics[0].team.name} 
                       logoUrl={s.statistics[0].team.logo} 

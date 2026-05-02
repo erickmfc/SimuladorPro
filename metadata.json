@@ -1,6 +1,6 @@
 {
-  "name": "Simulador Brasileirão 2026",
-  "description": "Simulador dinâmico do Brasileirão com controle de rodadas, simulação de placares e atualização automática da classificação.",
+  "name": "Simulador Pro - IA Esportiva",
+  "description": "Simulador inteligente do Brasileirão 2026 impulsionado por Multi-Agentes de IA para análises reais e previsões técnicas.",
   "requestFramePermissions": [],
   "majorCapabilities": []
 }

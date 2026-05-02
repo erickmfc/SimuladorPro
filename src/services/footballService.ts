@@ -31,6 +31,27 @@ export class FootballService {
     worldcup: 1,
   };
 
+  private static async safeFetch(url: string) {
+    try {
+      const res = await fetch(url);
+      const text = await res.text();
+      
+      if (!res.ok) {
+        if (res.status === 429) throw new Error("QUOTA_EXCEEDED");
+        throw new Error(`API Error: ${res.status}`);
+      }
+
+      try {
+        return JSON.parse(text);
+      } catch {
+        if (text.includes("Rate exceeded")) throw new Error("QUOTA_EXCEEDED");
+        throw new Error("Invalid JSON response");
+      }
+    } catch (e) {
+      throw e;
+    }
+  }
+
   static async getCompetitionData(type: CompetitionType, round?: number): Promise<CompetitionData> {
     if (type === "brasileirao") {
       const activeRound = round || 14;
@@ -200,17 +221,13 @@ export class FootballService {
   static async getTopScorers(type: CompetitionType, season: number): Promise<any[]> {
     const leagueId = this.LEAGUE_IDS[type];
     try {
-      const res = await fetch(`${this.BASE_URL}/players/topscorers?league=${leagueId}&season=${season}`);
-      const data = await res.json();
+      const data = await this.safeFetch(`${this.BASE_URL}/players/topscorers?league=${leagueId}&season=${season}`);
       if (data.response && data.response.length > 0) return data.response;
       
-      // Fallback for 2026 or empty data
-      if (season >= 2026) {
-        return this.getMockScorers(type);
-      }
+      if (season >= 2026) return this.getMockScorers(type);
       return [];
     } catch (error) {
-      console.error("Failed to fetch top scorers:", error);
+      console.warn("Top scorers fetch failed, using fallback:", error instanceof Error ? error.message : error);
       return season >= 2026 ? this.getMockScorers(type) : [];
     }
   }
@@ -218,17 +235,13 @@ export class FootballService {
   static async getTopAssists(type: CompetitionType, season: number): Promise<any[]> {
     const leagueId = this.LEAGUE_IDS[type];
     try {
-      const res = await fetch(`${this.BASE_URL}/players/topassists?league=${leagueId}&season=${season}`);
-      const data = await res.json();
+      const data = await this.safeFetch(`${this.BASE_URL}/players/topassists?league=${leagueId}&season=${season}`);
       if (data.response && data.response.length > 0) return data.response;
 
-      // Fallback for 2026 or empty data
-      if (season >= 2026) {
-        return this.getMockAssists(type);
-      }
+      if (season >= 2026) return this.getMockAssists(type);
       return [];
     } catch (error) {
-      console.error("Failed to fetch top assists:", error);
+      console.warn("Top assists fetch failed, using fallback:", error instanceof Error ? error.message : error);
       return season >= 2026 ? this.getMockAssists(type) : [];
     }
   }

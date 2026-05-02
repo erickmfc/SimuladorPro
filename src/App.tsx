@@ -11,7 +11,7 @@ import { TopPlayers } from "./components/TopPlayers";
 import { FootballService, CompetitionType, DataSource } from "./services/footballService";
 import { getMatchesForRound } from "./data/schedule";
 import { Team, Match, StandingEntry, Scorer } from "./types";
-import { LayoutGrid, List, History, ChevronRight, Shield, Trophy, RotateCcw, Info, Database, Sparkles } from "lucide-react";
+import { LayoutGrid, List, History, ChevronRight, Shield, Trophy, RotateCcw, Info, Database, Sparkles, Zap } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { cn } from "./lib/utils";
 
@@ -19,6 +19,7 @@ import { TeamLogo } from "./components/TeamLogo";
 
 import { FeaturedBanner } from "./components/FeaturedBanner";
 import { AIService, BannerData } from "./services/aiService";
+import { BANNER_FALLBACKS } from "./data/fallback";
 
 export default function App() {
   const [competition, setCompetition] = useState<CompetitionType>("brasileirao");
@@ -48,19 +49,62 @@ export default function App() {
   const [isLeftSidebarOpen, setIsLeftSidebarOpen] = useState(false);
   const [isRightSidebarOpen, setIsRightSidebarOpen] = useState(true);
   const [isAIUpdating, setIsAIUpdating] = useState(false);
+  const [aiStatus, setAiStatus] = useState(AIService.getStatus());
   const totalRounds = 38;
+
+  // Poll AI Status
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setAiStatus(AIService.getStatus());
+    }, 5000);
+    return () => clearInterval(interval);
+  }, []);
 
   // Persistence
   useEffect(() => {
     localStorage.setItem('br-sim-states', JSON.stringify(matchStates));
   }, [matchStates]);
 
-  // Initialize data
+  const handleRefreshAI = async (force: boolean = false) => {
+    setIsAIUpdating(true);
+    try {
+      console.log(`[AI Orchestrator] Manually triggered verification...`);
+      
+      const [scorersData, assistsData] = await Promise.all([
+        FootballService.getTopScorers(competition, 2026),
+        FootballService.getTopAssists(competition, 2026)
+      ]);
+
+      const [verifiedScorers, verifiedAssists] = await Promise.all([
+        AIService.verifyTopPlayers(scorersData, competition, force),
+        AIService.verifyTopPlayers(assistsData, competition, force)
+      ]);
+      
+      setScorers(verifiedScorers);
+      setAssists(verifiedAssists);
+
+      // Refresh Banners if forced
+      if (force) {
+        setBannerLoading(true);
+        const aiData = await AIService.getMultiAgentBanners(activeRound, true);
+        if (aiData && aiData.length > 0) setBanners(aiData);
+        setBannerLoading(false);
+      }
+    } catch (e) {
+      console.error("AI Refresh Fail", e);
+    } finally {
+      setIsAIUpdating(false);
+    }
+  };
+
+  // Initialize data - Strict Cache Policy
   useEffect(() => {
+    let active = true;
     const init = async () => {
       setIsLoading(true);
       try {
         const data = await FootballService.getCompetitionData(competition, activeRound);
+        if (!active) return;
         setTeams(data.teams);
         setMatches(data.matches); 
         setInitialStandings(data.initialStandings);
@@ -86,62 +130,56 @@ export default function App() {
           FootballService.getTopScorers(competition, data.season),
           FootballService.getTopAssists(competition, data.season)
         ]);
-        setScorers(scorersData);
-        setAssists(assistsData);
 
-        // Load AI Multi-Agent Banners
+        if (!active) return;
+
+        // AIService handles cache internal check
+        const [verifiedScorers, verifiedAssists] = await Promise.all([
+          AIService.verifyTopPlayers(scorersData, competition),
+          AIService.verifyTopPlayers(assistsData, competition)
+        ]);
+
+        if (!active) return;
+        setScorers(verifiedScorers);
+        setAssists(verifiedAssists);
+
+        // Load AI Multi-Agent Banners (Cached by default)
         setBannerLoading(true);
-        AIService.getMultiAgentBanners(activeRound).then(data => {
-          setBanners(data);
+        AIService.getMultiAgentBanners(activeRound).then(aiData => {
+          if (!active) return;
+          if (aiData && aiData.length > 0) {
+            setBanners(aiData);
+          } else {
+            setBanners(BANNER_FALLBACKS);
+          }
+          setBannerLoading(false);
+        }).catch(() => {
+          if (!active) return;
+          setBanners(BANNER_FALLBACKS);
           setBannerLoading(false);
         });
 
-        // Check for schedule updates via IA
-        AIService.checkMatchSchedule(data.matches).then(result => {
-          if (result.changesFound) {
-            setMatches(result.updatedSchedule);
-            console.log("[AI Schedule] Datas atualizadas conforme GE/CBF.");
-          }
-        });
+        // Delay checking schedule to stagger calls
+        setTimeout(() => {
+          if (!active) return;
+          AIService.checkMatchSchedule(data.matches).then(result => {
+            if (active && result.changesFound) {
+              setMatches(result.updatedSchedule);
+            }
+          });
+        }, 2000);
+
       } catch (err) {
         console.error(err);
       } finally {
-        setIsLoading(false);
+        if (active) setIsLoading(false);
       }
     };
     init();
+    return () => { active = false; };
   }, [competition, activeRound]);
 
-  // Real-time AI Plugin: Updates scorers/assists every 30 seconds using Multi-Agent Logic
-  useEffect(() => {
-    const interval = setInterval(async () => {
-      setIsAIUpdating(true);
-      try {
-        console.log(`[AI Orchestrator] Verifying data via Google IA Search...`);
-        
-        // Use the multi-agent orchestration for the first game to verify integrity
-        if (matches.length > 0) {
-          const context = `Match: ${matches[0].homeTeam.name} vs ${matches[0].awayTeam.name}, Date: ${matches[0].date}`;
-          const report = await AIService.orchestrateMatchContext(context);
-          console.log("[AI Veracity Report]", report.veracity);
-        }
-
-        const [scorersData, assistsData] = await Promise.all([
-          FootballService.getTopScorers(competition, 2026),
-          FootballService.getTopAssists(competition, 2026)
-        ]);
-        
-        setScorers(scorersData);
-        setAssists(assistsData);
-        setIsAIUpdating(false);
-      } catch (e) {
-        console.error("AI Orchestrator Fail", e);
-        setIsAIUpdating(false);
-      }
-    }, 30000);
-
-    return () => clearInterval(interval);
-  }, [competition, matches]);
+  // REMOVED: Automatic 30s interval to prevent quota exhaustion
 
   const handleScoreChange = (matchId: string, type: "home" | "away", value: string) => {
     const numValue = value === "" ? "" : parseInt(value);
@@ -361,13 +399,28 @@ export default function App() {
             >
               Futebol
             </button>
-            <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-emerald-500/10 border border-emerald-500/20 group relative cursor-help">
-              <div className={cn("w-2 h-2 rounded-full", isAIUpdating ? "bg-emerald-400 animate-ping" : "bg-emerald-500")} />
-              <span className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">Google IA Search</span>
-              <div className="absolute top-full left-0 mt-2 w-48 p-2 bg-slate-900 border border-white/10 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-[100] shadow-2xl">
-                <p className="text-[9px] font-bold text-slate-300 leading-tight">Sincronizado com dados de 2026 via Globo Esporte (GE) e Google IA.</p>
-              </div>
-            </div>
+            <button 
+              onClick={() => handleRefreshAI(true)}
+              disabled={isAIUpdating || aiStatus.isCircuitOpen}
+              title={aiStatus.isCircuitOpen ? "AI temporariamente offline (Limite atingido)" : isAIUpdating ? "Sincronizando..." : "Atualizar dados via Google Search IA"}
+              className={cn(
+                "group flex items-center gap-2 px-4 py-2 rounded-full border transition-all relative overflow-hidden",
+                aiStatus.isCircuitOpen
+                  ? "bg-red-500/10 border-red-500/20 text-red-400 opacity-80 cursor-not-allowed"
+                  : isAIUpdating 
+                    ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400 opacity-80 cursor-wait" 
+                    : "bg-slate-900 border-white/5 text-slate-400 hover:bg-slate-800 hover:text-white"
+              )}
+            >
+              <div className={cn(
+                "w-2 h-2 rounded-full shadow-[0_0_8px_currentColor]", 
+                aiStatus.isCircuitOpen ? "bg-red-500" : isAIUpdating ? "bg-emerald-400 animate-ping" : "bg-emerald-500"
+              )} />
+              <span className="text-[10px] font-black uppercase tracking-widest">
+                {aiStatus.isCircuitOpen ? "IA Offline" : isAIUpdating ? "Processando..." : "Sincronizar c/ IA"}
+              </span>
+              <Sparkles size={12} className={cn(isAIUpdating && "animate-spin", "group-hover:text-bet-blue transition-colors")} />
+            </button>
           </nav>
         </div>
 
@@ -420,16 +473,32 @@ export default function App() {
           <div className="space-y-4">
             <FeaturedBanner banners={banners} loading={bannerLoading} />
             {banners.length > 0 && !bannerLoading && (
-              <div className="flex justify-center">
+              <div className="flex flex-col items-center gap-6">
                 <div className="glass-pill px-6 py-2 flex items-center gap-4 bg-white/5 border border-white/5">
                   <div className="flex items-center gap-2">
                     <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">3 Banners Online</span>
+                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">4 Banners Online via Multi-Agent IA</span>
                   </div>
                   <div className="w-px h-3 bg-white/10" />
                   <div className="flex items-center gap-2">
                     <span className="text-[10px] font-black text-indigo-400 uppercase tracking-widest">5 Novos Agendados p/ Rodada Final</span>
                   </div>
+                </div>
+
+                {/* Scheduled / Coming Later section */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full opacity-60 hover:opacity-100 transition-opacity">
+                  {[1, 2, 3].map((i) => (
+                    <div key={i} className="p-6 bg-slate-900/40 border border-dashed border-white/10 rounded-[2rem] flex flex-col items-center justify-center gap-3 text-center group cursor-not-allowed">
+                      <div className="w-12 h-12 rounded-full bg-slate-800 flex items-center justify-center text-slate-500 group-hover:text-bet-blue transition-colors">
+                        <Zap size={20} />
+                      </div>
+                      <div className="space-y-1">
+                        <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Aguardando IA</p>
+                        <p className="text-xs font-bold text-slate-400 capitalize">Banner Agendado {i}</p>
+                      </div>
+                      <div className="px-3 py-1 rounded-full bg-indigo-500/5 border border-indigo-500/10 text-[8px] font-black text-indigo-400 uppercase">Lançamento em Breve</div>
+                    </div>
+                  ))}
                 </div>
               </div>
             )}

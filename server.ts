@@ -1,5 +1,4 @@
 import express from "express";
-import { createServer as createViteServer } from "vite";
 import path from "path";
 import fs from "fs";
 import dotenv from "dotenv";
@@ -31,6 +30,14 @@ async function startServer() {
           "x-rapidapi-host": "v3.football.api-sports.io",
         },
       });
+      
+      if (!response.ok) {
+        if (response.status === 429) {
+          return res.status(429).json({ error: "API Quota Exceeded", status: "RESOURCE_EXHAUSTED" });
+        }
+        throw new Error(`Upstream API status ${response.status}`);
+      }
+
       const data = await response.json();
       res.json(data);
     } catch (error) {
@@ -41,6 +48,7 @@ async function startServer() {
 
   // Vite middleware for development
   if (process.env.NODE_ENV !== "production") {
+    const { createServer: createViteServer } = await import("vite");
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: "spa",
