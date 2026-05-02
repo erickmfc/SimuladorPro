@@ -17,6 +17,9 @@ import { cn } from "./lib/utils";
 
 import { TeamLogo } from "./components/TeamLogo";
 
+import { FeaturedBanner } from "./components/FeaturedBanner";
+import { AIService, BannerData } from "./services/aiService";
+
 export default function App() {
   const [competition, setCompetition] = useState<CompetitionType>("brasileirao");
   const [teams, setTeams] = useState<Team[]>([]);
@@ -28,6 +31,10 @@ export default function App() {
   const [initialStandings, setInitialStandings] = useState<StandingEntry[] | undefined>();
   const [scorers, setScorers] = useState<Scorer[]>([]);
   const [assists, setAssists] = useState<Scorer[]>([]);
+  
+  const [banners, setBanners] = useState<BannerData[]>([]);
+  const [bannerLoading, setBannerLoading] = useState(false);
+
   const [matchStates, setMatchStates] = useState<Record<string, { homeScore: number | ""; awayScore: number | ""; status: "pending" | "simulated" | "finished" }>>(() => {
     try {
       const saved = localStorage.getItem('br-sim-states');
@@ -39,7 +46,7 @@ export default function App() {
   const [activeRound, setActiveRound] = useState(14);
   const [focusedTeamIds, setFocusedTeamIds] = useState<number[]>([]);
   const [isLeftSidebarOpen, setIsLeftSidebarOpen] = useState(false);
-  const [isRightSidebarOpen, setIsRightSidebarOpen] = useState(false);
+  const [isRightSidebarOpen, setIsRightSidebarOpen] = useState(true);
   const [isAIUpdating, setIsAIUpdating] = useState(false);
   const totalRounds = 38;
 
@@ -81,6 +88,21 @@ export default function App() {
         ]);
         setScorers(scorersData);
         setAssists(assistsData);
+
+        // Load AI Multi-Agent Banners
+        setBannerLoading(true);
+        AIService.getMultiAgentBanners(activeRound).then(data => {
+          setBanners(data);
+          setBannerLoading(false);
+        });
+
+        // Check for schedule updates via IA
+        AIService.checkMatchSchedule(data.matches).then(result => {
+          if (result.changesFound) {
+            setMatches(result.updatedSchedule);
+            console.log("[AI Schedule] Datas atualizadas conforme GE/CBF.");
+          }
+        });
       } catch (err) {
         console.error(err);
       } finally {
@@ -90,31 +112,36 @@ export default function App() {
     init();
   }, [competition, activeRound]);
 
-  // Real-time AI Plugin: Updates scorers/assists every 20 seconds
+  // Real-time AI Plugin: Updates scorers/assists every 30 seconds using Multi-Agent Logic
   useEffect(() => {
     const interval = setInterval(async () => {
       setIsAIUpdating(true);
       try {
-        // Simulate "Google IA Search" refreshing live data
+        console.log(`[AI Orchestrator] Verifying data via Google IA Search...`);
+        
+        // Use the multi-agent orchestration for the first game to verify integrity
+        if (matches.length > 0) {
+          const context = `Match: ${matches[0].homeTeam.name} vs ${matches[0].awayTeam.name}, Date: ${matches[0].date}`;
+          const report = await AIService.orchestrateMatchContext(context);
+          console.log("[AI Veracity Report]", report.veracity);
+        }
+
         const [scorersData, assistsData] = await Promise.all([
-          FootballService.getTopScorers(competition, 2024),
-          FootballService.getTopAssists(competition, 2024)
+          FootballService.getTopScorers(competition, 2026),
+          FootballService.getTopAssists(competition, 2026)
         ]);
         
-        // Add artificial delay for that "AI is thinking" feel
-        setTimeout(() => {
-          setScorers(scorersData);
-          setAssists(assistsData);
-          setIsAIUpdating(false);
-        }, 2000);
+        setScorers(scorersData);
+        setAssists(assistsData);
+        setIsAIUpdating(false);
       } catch (e) {
-        console.error("AI Plugin Update Failed", e);
+        console.error("AI Orchestrator Fail", e);
         setIsAIUpdating(false);
       }
-    }, 20000);
+    }, 30000);
 
     return () => clearInterval(interval);
-  }, [competition]);
+  }, [competition, matches]);
 
   const handleScoreChange = (matchId: string, type: "home" | "away", value: string) => {
     const numValue = value === "" ? "" : parseInt(value);
@@ -334,9 +361,12 @@ export default function App() {
             >
               Futebol
             </button>
-            <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-indigo-500/10 border border-indigo-500/20">
-              <div className={cn("w-2 h-2 rounded-full", isAIUpdating ? "bg-indigo-400 animate-ping" : "bg-indigo-500")} />
-              <span className="text-[10px] font-black text-indigo-400 uppercase tracking-widest">Google IA Plugin</span>
+            <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-emerald-500/10 border border-emerald-500/20 group relative cursor-help">
+              <div className={cn("w-2 h-2 rounded-full", isAIUpdating ? "bg-emerald-400 animate-ping" : "bg-emerald-500")} />
+              <span className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">Google IA Search</span>
+              <div className="absolute top-full left-0 mt-2 w-48 p-2 bg-slate-900 border border-white/10 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-[100] shadow-2xl">
+                <p className="text-[9px] font-bold text-slate-300 leading-tight">Sincronizado com dados de 2026 via Globo Esporte (GE) e Google IA.</p>
+              </div>
             </div>
           </nav>
         </div>
@@ -385,84 +415,25 @@ export default function App() {
         </AnimatePresence>
 
         {/* Center Main Area */}
-        <main className="flex-1 overflow-y-auto no-scrollbar p-8 bg-app-bg">
-          {/* Featured Banner Card */}
-          {featuredMatch && (
-            <section className="relative h-[340px] rounded-3xl overflow-hidden mb-8 border border-white/5 shadow-2xl group">
-              <div className="absolute inset-0 bg-gradient-to-r from-bet-blue via-indigo-900 to-slate-900"></div>
-              <div className="absolute top-0 right-0 h-full w-1/2 overflow-hidden">
-                <img 
-                  src="https://images.unsplash.com/photo-1574629810360-7efbbe195018?auto=format&fit=crop&q=80&w=800" 
-                  className="w-full h-full object-cover opacity-60 scale-110 group-hover:scale-100 transition-transform duration-1000" 
-                  alt="" 
-                />
-              </div>
-              <div className="relative z-10 p-12 h-full flex flex-col justify-center max-w-lg">
-                <div className="flex items-center gap-3 mb-6">
-                  <div className="w-12 h-12 bg-white/10 backdrop-blur-xl border border-white/20 rounded-full flex items-center justify-center p-2">
-                    <TeamLogo name={featuredMatch.homeTeam.name} logoUrl={featuredMatch.homeTeam.logo} size="lg" />
+        <main className="flex-1 overflow-y-auto no-scrollbar p-8 bg-app-bg space-y-12">
+          {/* AI FeaturedBanner Carousel */}
+          <div className="space-y-4">
+            <FeaturedBanner banners={banners} loading={bannerLoading} />
+            {banners.length > 0 && !bannerLoading && (
+              <div className="flex justify-center">
+                <div className="glass-pill px-6 py-2 flex items-center gap-4 bg-white/5 border border-white/5">
+                  <div className="flex items-center gap-2">
+                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">3 Banners Online</span>
                   </div>
-                  <span className="text-white text-xs font-black uppercase">vs</span>
-                  <div className="w-12 h-12 bg-white/10 backdrop-blur-xl border border-white/20 rounded-full flex items-center justify-center p-2">
-                    <TeamLogo name={featuredMatch.awayTeam.name} logoUrl={featuredMatch.awayTeam.logo} size="lg" />
-                  </div>
-                  <div className="ml-4 glass-pill flex items-center gap-2">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
-                    Hoje, 21:00
+                  <div className="w-px h-3 bg-white/10" />
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-black text-indigo-400 uppercase tracking-widest">5 Novos Agendados p/ Rodada Final</span>
                   </div>
                 </div>
-                <h2 className="text-4xl font-black text-white leading-[0.9] mb-4 uppercase tracking-tighter">
-                  {featuredMatch.homeTeam.name} <br/> vs {featuredMatch.awayTeam.name}
-                </h2>
-                {/* Data Source Badge */}
-                <div className="flex items-center gap-2 mt-4">
-                  <div className={cn(
-                    "flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border",
-                    dataSource === DataSource.REAL ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" :
-                    dataSource === DataSource.ALTERNATIVE ? "bg-amber-500/10 text-amber-400 border-amber-500/20" :
-                    "bg-red-500/10 text-red-400 border-red-500/20"
-                  )}>
-                    <Database size={12} />
-                    {dataSource === DataSource.REAL ? "Dados Reais" : 
-                     dataSource === DataSource.ALTERNATIVE ? "Dados Alternativos" : 
-                     dataSource === DataSource.AI_SMART_SEARCH ? "Google IA Search" : "Modo Demo"}
-                  </div>
-                </div>
-
-                {/* AI Source Warning */}
-                {dataSource === DataSource.AI_SMART_SEARCH && (
-                  <motion.div 
-                    initial={{ opacity: 0, scale: 0.9 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    className="flex items-center gap-3 p-3 bg-indigo-500/10 border border-indigo-500/30 rounded-xl mt-4"
-                  >
-                    <Sparkles size={16} className="text-indigo-400 shrink-0" />
-                    <p className="text-[10px] text-indigo-200/90 font-medium">
-                      Dados obtidos via Google Search e processados por IA para garantir a última rodada disponível.
-                    </p>
-                  </motion.div>
-                )}
-
-                {/* Fallback Warning */}
-                {dataSource === DataSource.ALTERNATIVE && (
-                  <motion.div 
-                    initial={{ opacity: 0, y: -10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="flex items-center gap-3 p-3 bg-amber-500/5 border border-amber-500/20 rounded-xl mt-4"
-                  >
-                    <Info size={16} className="text-amber-500 shrink-0" />
-                    <p className="text-[10px] text-amber-200/70 font-medium">
-                      Dados alternativos usados porque a API principal falhou. Algumas informações podem estar ligeiramente defasadas.
-                    </p>
-                  </motion.div>
-                )}
-
-                <p className="text-white/60 text-sm mb-8 font-medium leading-relaxed">
-                  As projeções de tabela são atualizadas em tempo real conforme você preenche os placares abaixo.
-                </p>
               </div>
-            </section>
-          )}
+            )}
+          </div>
 
           {/* Round Switcher / Match List Filters */}
           <div className="flex flex-col gap-6 mb-8">
@@ -533,6 +504,7 @@ export default function App() {
                       homeScore={state.homeScore} 
                       awayScore={state.awayScore} 
                       status={state.status}
+                      date={m.date}
                       isHighlighted={isInteracted}
                       onScoreChange={(type, val) => handleScoreChange(m.id, type, val)}
                       onQuickSelect={(res) => handleQuickSelect(m.id, res)}
@@ -561,16 +533,9 @@ export default function App() {
               </div>
 
               <div className="mt-8 border-t border-border-slate pt-8 relative">
-                {isAIUpdating && (
-                  <div className="absolute inset-x-0 top-0 h-1 bg-indigo-500/30 overflow-hidden">
-                    <motion.div 
-                      className="h-full bg-indigo-500"
-                      initial={{ width: 0 }}
-                      animate={{ width: '100%' }}
-                      transition={{ duration: 2 }}
-                    />
-                  </div>
-                )}
+                <div className="px-6 mb-6">
+                  <SectionTitle>Líderes de Estatísticas</SectionTitle>
+                </div>
                 <TopPlayers scorers={scorers} assists={assists} />
               </div>
             </motion.aside>

@@ -6,13 +6,14 @@ interface Props {
   name: string;
   logoUrl?: string;
   className?: string;
-  size?: "sm" | "md" | "lg" | "xl";
+  size?: "xs" | "sm" | "md" | "lg" | "xl";
 }
 
 export const TeamLogo: React.FC<Props> = ({ name, logoUrl, className, size = "md" }) => {
   const [error, setError] = useState(false);
 
   const sizes = {
+    xs: "w-3 h-3 text-[5px]",
     sm: "w-4 h-4 text-[6px]",
     md: "w-6 h-6 text-[8px]",
     lg: "w-10 h-10 text-[12px]",

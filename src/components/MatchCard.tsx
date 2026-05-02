@@ -11,6 +11,7 @@ interface Props {
   homeScore: number | "";
   awayScore: number | "";
   status: "pending" | "finished" | "simulated";
+  date: string;
   isHighlighted?: boolean;
   onScoreChange: (type: "home" | "away", value: string) => void;
   onQuickSelect: (result: "1" | "X" | "2") => void;
@@ -23,12 +24,26 @@ export const MatchCard: React.FC<Props> = ({
   homeScore, 
   awayScore, 
   status,
+  date,
   isHighlighted,
   onScoreChange,
   onQuickSelect,
   onClear
 }) => {
   const isSimulated = homeScore !== "" && awayScore !== "";
+
+  const formatDate = (dateString: string) => {
+    try {
+      const d = new Date(dateString);
+      if (isNaN(d.getTime())) return dateString;
+      const day = String(d.getDate()).padStart(2, '0');
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const year = d.getFullYear();
+      return `${day}/${month}/${year}`;
+    } catch (e) {
+      return dateString;
+    }
+  };
 
   return (
     <motion.div 
@@ -45,7 +60,7 @@ export const MatchCard: React.FC<Props> = ({
       <div className="flex items-center justify-between w-full mb-5 gap-4">
         {/* Home Team */}
         <div className="flex items-center gap-3 flex-1 min-w-0">
-          <TeamLogo name={home.name} logoUrl={home.logo} size="lg" className="bg-slate-900 border border-border-slate/30 p-1.5 shadow-inner" />
+          <TeamLogo name={home.name} logoUrl={home.logo} size="md" className="bg-slate-900 border border-border-slate/30 p-1 shadow-inner" />
           <span className="text-sm font-black text-slate-200 uppercase tracking-tighter truncate">{home.name}</span>
         </div>
 
@@ -81,7 +96,7 @@ export const MatchCard: React.FC<Props> = ({
         {/* Away Team */}
         <div className="flex items-center gap-3 flex-1 min-w-0 justify-end text-right">
           <span className="text-sm font-black text-slate-200 uppercase tracking-tighter truncate">{away.name}</span>
-          <TeamLogo name={away.name} logoUrl={away.logo} size="lg" className="bg-slate-900 border border-border-slate/30 p-1.5 shadow-inner" />
+          <TeamLogo name={away.name} logoUrl={away.logo} size="md" className="bg-slate-900 border border-border-slate/30 p-1 shadow-inner" />
         </div>
       </div>
 
@@ -115,6 +130,7 @@ export const MatchCard: React.FC<Props> = ({
               {status === "finished" ? "Encerrado" : isSimulated ? "Simulado" : "Pendente"}
             </div>
             {isSimulated && status !== "finished" && <Shield size={12} className="text-emerald-400" />}
+            <span className="text-[10px] font-bold text-slate-500 ml-1">{formatDate(date)}</span>
           </div>
         </div>
 
